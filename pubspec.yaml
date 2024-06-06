@@ -46,8 +46,8 @@ dependencies:
   image_picker:
   path_provider:
   path:
-  image_editor_plus: ^1.0.6
-  background_remover: ^0.0.3
+  image_editor_plus:
+  background_remover:
 
 dev_dependencies:
   flutter_test:
