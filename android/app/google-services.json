@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "451357820195",
+    "project_id": "testingsticker-36c45",
+    "storage_bucket": "testingsticker-36c45.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:451357820195:android:815f7f6b8a37304f6cf896",
+        "android_client_info": {
+          "package_name": "com.example.testing_sticker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgr2HTIcLtt34acRlck97LHRDvw1q0SCM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
