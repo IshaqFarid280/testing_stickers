@@ -102,12 +102,14 @@ class _StickerPackScreenState extends State<StickerPackScreen> {
     );
 
     if (editedImageData != null) {
-      // Resize after editing
-      Uint8List resizedImageData = _resizeImage(editedImageData, 512, 512);
-      setState(() {
-        _imageDataList[index] = resizedImageData;
-        _uploadSticker(resizedImageData);
-      });
+      Uint8List? imageWithoutBackground = await _removeBackground(editedImageData);
+      if (imageWithoutBackground != null) {
+        Uint8List resizedImageData = _resizeImage(imageWithoutBackground, 512, 512);
+        setState(() {
+          _imageDataList[index] = resizedImageData;
+          _uploadSticker(resizedImageData);
+        });
+      }
     }
   }
 
