@@ -40,12 +40,12 @@ class AllStickersScreen extends StatelessWidget {
                       var stickers = snapshot.data!.docs;
                       return InkWell(
                         onTap: (){
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => StickerPackScreen(packId: pack.id,packName: pack['name'],),
-                            ),
-                          );
+                          // Navigator.push(
+                          //   context,
+                          //   MaterialPageRoute(
+                          //     builder: (context) => StickerPackScreen(packId: pack.id,packName: pack['name'],),
+                          //   ),
+                          // );
                         },
                         child: Container(
                           height: 250,

@@ -2,12 +2,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:testing_sticker/stickr_pack_screen.dart';
+import 'upload_stickers.dart';
+
+
 
 class UserPacksScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser!.uid;
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: (){
+          Navigator.push(context,MaterialPageRoute(builder: (context)=> UploadStickerScreen()));
+        },
+        child: Icon(Icons.add),
+      ),
       appBar: AppBar(
         title: Text('My Sticker Packs'),
       ),
@@ -24,7 +33,9 @@ class UserPacksScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               var pack = packs[index];
               return ListTile(
+                leading: Image.network(pack['pack_image']),
                 title: Text(pack['name']),
+                subtitle: Text(pack['author_name']),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -32,6 +43,7 @@ class UserPacksScreen extends StatelessWidget {
                       builder: (context) => StickerPackScreen(
                         packId: pack.id,
                         packName: pack['name'],
+                        userId:pack['user_id'],
                       ),
                     ),
                   );
@@ -44,3 +56,5 @@ class UserPacksScreen extends StatelessWidget {
     );
   }
 }
+
+

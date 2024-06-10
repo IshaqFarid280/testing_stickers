@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -8,33 +8,42 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_editor_plus/image_editor_plus.dart';
 import 'package:background_remover/background_remover.dart';
 import 'package:image/image.dart' as img;
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class StickerPackScreen extends StatefulWidget {
   final String packId;
   final String packName;
+  final String userId ;
 
-  StickerPackScreen({required this.packId, required this.packName});
+  StickerPackScreen({required this.packId, required this.packName,required this.userId});
 
   @override
   _StickerPackScreenState createState() => _StickerPackScreenState();
 }
 
 class _StickerPackScreenState extends State<StickerPackScreen> {
+  List<Uint8List?> _imageDataList = List.generate(30, (index) => null);
+  List<bool> _isUploading = List.generate(30, (index) => false);
   Future<void> _uploadSticker(Uint8List imageData) async {
     String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-    Reference storageRef = FirebaseStorage.instance.ref().child('stickers/$fileName');
+    Reference storageRef = FirebaseStorage.instance.ref().child('stickers/$fileName.webp');
     UploadTask uploadTask = storageRef.putData(imageData);
     TaskSnapshot taskSnapshot = await uploadTask.whenComplete(() => null);
     String imageUrl = await taskSnapshot.ref.getDownloadURL();
-
     await FirebaseFirestore.instance.collection('packs').doc(widget.packId).collection('stickers').add({
-      'name': 'stickerName',
+      'identifier': widget.packId,
+      'name': widget.packName,
+      'publisher': 'Trending Stickers',
+      'publisher_email': 'Chauhantheleader@gmail.com',
+      'privacy_policy_website': 'http://kethod.com/apps/trending-stickers/privacy-policy.html',
+      "license_agreement_website": "",
+      "image_data_version": "1",
       'image_url': imageUrl,
+      'user_id':widget.userId
     });
+
+    Navigator.pop(context);
   }
-
-
-  List<Uint8List?> _imageDataList = List.generate(30, (index) => null);
 
   void _showBottomSheet(BuildContext context, int index) {
     showModalBottomSheet(
@@ -70,8 +79,11 @@ class _StickerPackScreenState extends State<StickerPackScreen> {
           // Resize image to 400x400
           img.Image resizedImage = img.copyResize(image, width: 750, height: 750);
 
-          // Encode the image back to Uint8List
-          return Uint8List.fromList(img.encodePng(resizedImage));
+          // Encode the image to WebP format
+          return await FlutterImageCompress.compressWithList(
+            Uint8List.fromList(img.encodePng(resizedImage)),
+            format: CompressFormat.webp,
+          );
         }
       }
       return null;
@@ -116,42 +128,79 @@ class _StickerPackScreenState extends State<StickerPackScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Implement floating action button logic if needed
-        },
-        child: Icon(Icons.add),
-      ),
       appBar: AppBar(
         title: Text(widget.packName),
       ),
-      body: GridView.builder(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 5,
-          childAspectRatio: 1,
-        ),
-        itemCount: 30,
-        itemBuilder: (context, index) {
-          return GestureDetector(
-            onTap: () {
-              if (_imageDataList[index] != null) {
-                _openImageEditor(context, _imageDataList[index]!, index);
-              } else {
-                _showBottomSheet(context, index);
-              }
-            },
-            child: Container(
-              margin: EdgeInsets.all(4.0),
-              color: Colors.grey[200],
-              child: _imageDataList[index] != null
-                  ? Image.memory(
-                _imageDataList[index]!,
-                fit: BoxFit.cover,
-              )
-                  : Icon(Icons.add),
-            ),
-          );
-        },
+      body: StreamBuilder(
+        stream: FirebaseFirestore.instance.collection('packs').doc(widget.packId).collection('stickers').snapshots(),
+        builder: (context,AsyncSnapshot<QuerySnapshot> snapshot ){
+          if(snapshot.connectionState == ConnectionState.waiting){
+            return Center(child: CupertinoActivityIndicator(),);
+          }else if (snapshot.data!.docs.isEmpty){
+            return GridView.builder(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 5,
+                childAspectRatio: 1,
+              ),
+              itemCount: 30,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () {
+                    if (_imageDataList[index] != null) {
+                      _openImageEditor(context, _imageDataList[index]!, index);
+                    } else {
+                      _showBottomSheet(context, index);
+                    }
+                  },
+                  child: Container(
+                    margin: EdgeInsets.all(4.0),
+                    color: Colors.grey[200],
+                    child: _isUploading[index]
+                        ? Center(child: CircularProgressIndicator())
+                        : _imageDataList[index] != null
+                        ? Image.memory(
+                      _imageDataList[index]!,
+                      fit: BoxFit.cover,
+                    )
+                        : Icon(Icons.add),
+                  ),
+                );
+              },
+            );
+          }else if (snapshot.hasData){
+            var data = snapshot.data!.docs;
+            return GridView.builder(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 5,
+                childAspectRatio: 1,
+              ),
+              itemCount: data.length,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () {
+                    if (index < _imageDataList.length && _imageDataList[index] != null) {
+                      _openImageEditor(context, _imageDataList[index]!, index);
+                    } else {
+                      _showBottomSheet(context, index);
+                    }
+                  },
+                  child: Container(
+                    margin: EdgeInsets.all(4.0),
+                    color: Colors.grey[200],
+                    child: data[index]['image_url'] != null
+                        ? Image.network(
+                      data[index]['image_url'],
+                      fit: BoxFit.cover,
+                    )
+                        : Icon(Icons.add),
+                  ),
+                );
+              },
+            );
+          }else{
+            return Center(child: Icon(Icons.error),);
+          }
+        }
       ),
     );
   }
