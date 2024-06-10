@@ -48,6 +48,8 @@ dependencies:
   path:
   image_editor_plus:
   background_remover:
+  image: ^4.2.0
+  device_info_plus:
 
 dev_dependencies:
   flutter_test:
