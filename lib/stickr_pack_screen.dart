@@ -1,13 +1,12 @@
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_editor_plus/options.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_editor_plus/image_editor_plus.dart';
-import 'package:background_remover/background_remover.dart';
 import 'package:image/image.dart' as img;
+import 'package:testing_sticker/background_remover_screen.dart';
 
 class StickerPackScreen extends StatefulWidget {
   final String packId;
@@ -20,7 +19,10 @@ class StickerPackScreen extends StatefulWidget {
 }
 
 class _StickerPackScreenState extends State<StickerPackScreen> {
-  Future<void> _uploadSticker(Uint8List imageData) async {
+  List<Uint8List?> _imageDataList = List.generate(30, (index) => null);
+  List<bool> _isUploading = List.generate(30, (index) => false);
+
+  Future<void> _uploadSticker(Uint8List imageData, int index) async {
     String fileName = DateTime.now().millisecondsSinceEpoch.toString();
     Reference storageRef = FirebaseStorage.instance.ref().child('stickers/$fileName');
     UploadTask uploadTask = storageRef.putData(imageData);
@@ -31,10 +33,12 @@ class _StickerPackScreenState extends State<StickerPackScreen> {
       'name': 'stickerName',
       'image_url': imageUrl,
     });
+
+    setState(() {
+      _imageDataList[index] = imageData;
+      _isUploading[index] = false;
+    });
   }
-
-
-  List<Uint8List?> _imageDataList = List.generate(30, (index) => null);
 
   void _showBottomSheet(BuildContext context, int index) {
     showModalBottomSheet(
@@ -43,42 +47,22 @@ class _StickerPackScreenState extends State<StickerPackScreen> {
         return BottomSheetContent(
           packId: widget.packId,
           onImageSelected: (Uint8List imageData) async {
-            // Remove background and resize to 400x400
-            Uint8List? imageWithoutBackground = await _removeBackground(imageData);
-            if (imageWithoutBackground != null) {
-              setState(() {
-                _imageDataList[index] = imageWithoutBackground;
-              });
-              Navigator.pop(context);
-              _openImageEditor(context, imageWithoutBackground, index);
-            }
+            Navigator.pop(context);
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BackgroundOptionScreen(
+                  imageData: imageData,
+                  onImageReady: (Uint8List processedImageData) {
+                    _openImageEditor(context, processedImageData, index);
+                  },
+                ),
+              ),
+            );
           },
         );
       },
     );
-  }
-
-  Future<Uint8List?> _removeBackground(Uint8List imageData) async {
-    try {
-      // Remove background
-      Uint8List? result = await removeBackground(imageBytes: imageData);
-
-      if (result != null) {
-        // Decode the image
-        img.Image? image = img.decodeImage(result);
-        if (image != null) {
-          // Resize image to 400x400
-          img.Image resizedImage = img.copyResize(image, width: 750, height: 750);
-
-          // Encode the image back to Uint8List
-          return Uint8List.fromList(img.encodePng(resizedImage));
-        }
-      }
-      return null;
-    } catch (e) {
-      print("Error removing background: $e");
-      return null;
-    }
   }
 
   Uint8List _resizeImage(Uint8List data, int width, int height) {
@@ -91,25 +75,29 @@ class _StickerPackScreenState extends State<StickerPackScreen> {
     var editedImageData = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ImageEditor(
-          image: imageData,
-          cropOption: const CropOption(
-            reversible: false,
+        builder: (context) => Container(
+          color: Colors.white,
+          child: ImageEditor(
+
+            image: imageData,
+            cropOption: const CropOption(
+              reversible: false,
+            ),
+            emojiOption: EmojiOption(),
           ),
-          emojiOption: EmojiOption(),
         ),
       ),
     );
 
+
+
     if (editedImageData != null) {
-      Uint8List? imageWithoutBackground = await _removeBackground(editedImageData);
-      if (imageWithoutBackground != null) {
-        Uint8List resizedImageData = _resizeImage(imageWithoutBackground, 512, 512);
-        setState(() {
-          _imageDataList[index] = resizedImageData;
-          _uploadSticker(resizedImageData);
-        });
-      }
+      setState(() {
+        _isUploading[index] = true;
+      });
+
+      Uint8List resizedImageData = _resizeImage(editedImageData, 512, 512);
+      _uploadSticker(resizedImageData, index);
     }
   }
 
@@ -143,7 +131,9 @@ class _StickerPackScreenState extends State<StickerPackScreen> {
             child: Container(
               margin: EdgeInsets.all(4.0),
               color: Colors.grey[200],
-              child: _imageDataList[index] != null
+              child: _isUploading[index]
+                  ? Center(child: CircularProgressIndicator())
+                  : _imageDataList[index] != null
                   ? Image.memory(
                 _imageDataList[index]!,
                 fit: BoxFit.cover,
@@ -190,8 +180,8 @@ class _BottomSheetContentState extends State<BottomSheetContent> {
           },
         ),
         ListTile(
-          leading: Icon(Icons.photo),
-          title: Text('Open Gallery'),
+          leading: Icon(Icons.photo_library),
+          title: Text('Choose from Gallery'),
           onTap: () {
             _pickImage(ImageSource.gallery);
           },
